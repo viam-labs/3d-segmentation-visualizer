@@ -22,7 +22,7 @@ const ModelName = "3d-segmentation-visualizer"
 
 var (
 	// Model is the full resource name of the model
-	Model            = resource.NewModel("viamlabs", "camera", ModelName)
+	Model            = resource.NewModel("viam-labs", "camera", ModelName)
 	errUnimplemented = errors.New("unimplemented")
 )
 

@@ -20,7 +20,7 @@ There are two necessary attributes needed to use the visualizer:
       },
       "depends_on": [],
       "name": "viz",
-      "model": "viamlabs:camera:3d-segmentation-visualizer",
+      "model": "viam-labs:camera:3d-segmentation-visualizer",
       "type": "camera"
     },
 ```

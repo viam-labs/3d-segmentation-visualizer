@@ -1,6 +1,6 @@
 module github.com/viam-labs/3d-segmentation-visualizer
 
-go 1.21.0
+go 1.21
 
 require (
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
