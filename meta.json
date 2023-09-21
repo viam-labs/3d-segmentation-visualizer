@@ -1,0 +1,13 @@
+{
+  "module_id": "viam-labs:3d-segmentation-visualizer",
+  "visibility": "public",
+  "url": "https://github.com/viam-labs/3d-segmentation-visualizer/",
+  "description": "A virtual camera to visualize the outputs from a vision service's GetObjectPointClouds method",
+  "models": [
+    {
+      "api": "rdk:component:camera",
+      "model": "viam-labs:camera:3d-segmentation-visualizer"
+    }
+  ],
+  "entrypoint": "3d-segmentation-visualizer"
+}
