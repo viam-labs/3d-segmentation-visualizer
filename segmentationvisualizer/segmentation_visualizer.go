@@ -73,7 +73,7 @@ func newVisualizer(
 	if err := v.Reconfigure(ctx, deps, conf); err != nil {
 		return nil, err
 	}
-	return camera.FromVideoSource(conf.ResourceName(), v), nil
+	return camera.FromVideoSource(conf.ResourceName(), v, logger), nil
 }
 
 func (v *visualizer) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
