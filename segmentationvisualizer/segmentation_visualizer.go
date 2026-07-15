@@ -10,11 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
-	"github.com/edaniels/golog"
 	"go.viam.com/rdk/components/camera"
+	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/pointcloud"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/services/vision"
+	"go.viam.com/rdk/spatialmath"
 )
 
 // ModelName is the name of the model
@@ -41,30 +42,31 @@ type Config struct {
 }
 
 // Validate will ensure that both the underlying camera and service are present
-func (cfg *Config) Validate(path string) ([]string, error) {
+func (cfg *Config) Validate(path string) ([]string, []string, error) {
 	if cfg.CameraName == "" {
-		return nil, fmt.Errorf(`expected "camera_name" attribute for %s %q`, ModelName, path)
+		return nil, nil, fmt.Errorf(`expected "camera_name" attribute for %s %q`, ModelName, path)
 	}
 	if cfg.ServiceName == "" {
-		return nil, fmt.Errorf(`expected "vision_service_name" attribute for %s %q`, ModelName, path)
+		return nil, nil, fmt.Errorf(`expected "vision_service_name" attribute for %s %q`, ModelName, path)
 	}
 
-	return []string{cfg.CameraName, cfg.ServiceName}, nil
+	return []string{cfg.CameraName, cfg.ServiceName}, nil, nil
 }
 
 type visualizer struct {
 	resource.Named
-	camera.VideoSource
+	resource.AlwaysRebuild
+	srcCam     camera.Camera
 	cameraName string
 	service    vision.Service
-	logger     golog.Logger
+	logger     logging.Logger
 }
 
 func newVisualizer(
 	ctx context.Context,
 	deps resource.Dependencies,
 	conf resource.Config,
-	logger golog.Logger,
+	logger logging.Logger,
 ) (camera.Camera, error) {
 	v := &visualizer{
 		Named:  conf.ResourceName().AsNamed(),
@@ -73,7 +75,7 @@ func newVisualizer(
 	if err := v.Reconfigure(ctx, deps, conf); err != nil {
 		return nil, err
 	}
-	return camera.FromVideoSource(conf.ResourceName(), v, logger), nil
+	return v, nil
 }
 
 func (v *visualizer) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
@@ -89,11 +91,7 @@ func (v *visualizer) Reconfigure(ctx context.Context, deps resource.Dependencies
 	if err != nil {
 		return errors.Wrapf(err, "unable to get camera %v for %s", cfg.CameraName, ModelName)
 	}
-	vs, ok := cam.(camera.VideoSource)
-	if !ok {
-		return errors.Wrapf(err, "camera %v is not a video source for %s", cfg.CameraName, ModelName)
-	}
-	v.VideoSource = vs
+	v.srcCam = cam
 	// get the source service
 	v.service, err = vision.FromDependencies(deps, cfg.ServiceName)
 	if err != nil {
@@ -102,19 +100,23 @@ func (v *visualizer) Reconfigure(ctx context.Context, deps resource.Dependencies
 	return nil
 }
 
-// NextPointCloud function calls a segmenter service on the underlying camera and returns a pointcloud.
-func (v *visualizer) NextPointCloud(ctx context.Context) (pointcloud.PointCloud, error) {
-	// get the service
+// Images delegates to the underlying camera.
+func (v *visualizer) Images(ctx context.Context, filterSourceNames []string, extra map[string]interface{}) ([]camera.NamedImage, resource.ResponseMetadata, error) {
+	return v.srcCam.Images(ctx, filterSourceNames, extra)
+}
+
+// NextPointCloud calls a segmenter service on the underlying camera and returns a pointcloud.
+func (v *visualizer) NextPointCloud(ctx context.Context, extra map[string]interface{}) (pointcloud.PointCloud, error) {
 	clouds, err := v.service.GetObjectPointClouds(ctx, v.cameraName, map[string]interface{}{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get point clouds from the vision service")
 	}
 	if clouds == nil {
-		return pointcloud.New(), nil
+		return pointcloud.NewBasicPointCloud(0), nil
 	}
 
 	// merge pointclouds with a color overlay
-	merged := pointcloud.New()
+	merged := pointcloud.NewBasicPointCloud(0)
 	palette := colorful.FastWarmPalette(len(clouds))
 	for i, cluster := range clouds {
 		col, ok := color.NRGBAModel.Convert(palette[i]).(color.NRGBA)
@@ -137,6 +139,21 @@ func (v *visualizer) NextPointCloud(ctx context.Context) (pointcloud.PointCloud,
 	return merged, nil
 }
 
+// Properties delegates to the underlying camera.
+func (v *visualizer) Properties(ctx context.Context) (camera.Properties, error) {
+	return v.srcCam.Properties(ctx)
+}
+
+// Geometries delegates to the underlying camera.
+func (v *visualizer) Geometries(ctx context.Context, extra map[string]interface{}) ([]spatialmath.Geometry, error) {
+	return v.srcCam.Geometries(ctx, extra)
+}
+
+// Status delegates to the underlying camera.
+func (v *visualizer) Status(ctx context.Context) (map[string]interface{}, error) {
+	return v.srcCam.Status(ctx)
+}
+
 // DoCommand simply echos whatever was sent.
 func (v *visualizer) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
 	return cmd, nil
@@ -145,6 +162,6 @@ func (v *visualizer) DoCommand(ctx context.Context, cmd map[string]interface{}) 
 // Close closes the underlying stream.
 func (v *visualizer) Close(ctx context.Context) error {
 	err1 := v.service.Close(ctx)
-	err2 := v.VideoSource.Close(ctx)
+	err2 := v.srcCam.Close(ctx)
 	return multierr.Combine(err1, err2)
 }
