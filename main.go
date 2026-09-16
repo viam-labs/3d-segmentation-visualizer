@@ -4,9 +4,9 @@ package main
 import (
 	"context"
 
-	"github.com/edaniels/golog"
 	"github.com/viam-labs/3d-segmentation-visualizer/segmentationvisualizer"
 	"go.viam.com/rdk/components/camera"
+	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/module"
 	"go.viam.com/utils"
 )
@@ -15,8 +15,8 @@ func main() {
 	utils.ContextualMain(mainWithArgs, module.NewLoggerFromArgs("3d-segmentation-visualizer"))
 }
 
-func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) (err error) {
-	vizMod, err := module.NewModuleFromArgs(ctx, logger)
+func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) (err error) {
+	vizMod, err := module.NewModuleFromArgs(ctx)
 	if err != nil {
 		return err
 	}
