@@ -23,8 +23,7 @@ const ModelName = "3d-segmentation-visualizer"
 
 var (
 	// Model is the full resource name of the model
-	Model            = resource.NewModel("viam-labs", "camera", ModelName)
-	errUnimplemented = errors.New("unimplemented")
+	Model = resource.NewModel("viam-labs", "camera", ModelName)
 )
 
 func init() {
@@ -87,13 +86,13 @@ func (v *visualizer) Reconfigure(ctx context.Context, deps resource.Dependencies
 	}
 	// get the source camera
 	v.cameraName = cfg.CameraName
-	cam, err := camera.FromDependencies(deps, cfg.CameraName)
+	cam, err := camera.FromProvider(deps, cfg.CameraName)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get camera %v for %s", cfg.CameraName, ModelName)
 	}
 	v.srcCam = cam
 	// get the source service
-	v.service, err = vision.FromDependencies(deps, cfg.ServiceName)
+	v.service, err = vision.FromProvider(deps, cfg.ServiceName)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get vision service %v for %s", cfg.ServiceName, ModelName)
 	}
